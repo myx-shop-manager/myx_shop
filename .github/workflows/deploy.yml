@@ -1,0 +1,75 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # 每天 UTC 00:00 運行一次
+    - cron: '0 0 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: HTML Validation
+      run: |
+        echo "檢查 HTML 文件..."
+        # 安裝 html5validator
+        pip install html5validator
+        # 檢查主要 HTML 文件
+        html5validator --root . --match "*.html" --ignore "admin/*" || true
+        
+    - name: Check GA4 Code
+      run: |
+        echo "檢查 GA4 代碼..."
+        if grep -r "G-RX7R4JWV7E" index.html; then
+          echo "✅ GA4 測量 ID 存在"
+        else
+          echo "❌ GA4 測量 ID 未找到"
+          exit 1
+        fi
+        
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test  # 依賴 test job 成功
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+      
+    - name: Build (如果需要)
+      run: |
+        echo "構建步驟..."
+        # 這裡可以添加構建命令，如：
+        # npm install
+        # npm run build
+        
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: '.'
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v2
+      
+    - name: Send notification
+      if: success()
+      run: |
+        echo "🚀 部署成功！"
+        echo "網站 URL: https://myx-shop-manager.github.io/myx_shop/"
+        
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ 部署失敗！請檢查錯誤。"
